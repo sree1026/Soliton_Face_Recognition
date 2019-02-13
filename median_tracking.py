@@ -1,6 +1,6 @@
 import cv2
 import sys
-
+import time
 detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
 
@@ -10,7 +10,7 @@ if __name__ == '__main__':
     # Instead of MIL, you can also use
 
     tracker_types = ['BOOSTING', 'MIL', 'KCF', 'TLD', 'MEDIANFLOW', 'GOTURN', 'MOSSE', 'CSRT']
-    tracker_type = tracker_types[4]
+    tracker_type = tracker_types[7]
 
     if tracker_type == 'BOOSTING':
         tracker = cv2.TrackerBoosting_create()
@@ -43,7 +43,7 @@ if __name__ == '__main__':
         # Read a new frame
         ret, frame = video.read()
         frame_count += 1
-        print(frame_count)
+        # print(frame_count)
         if ret:
             if tracking_face is False or frame_count % 15 == 1:
                 print("detecting face...............")
@@ -52,6 +52,7 @@ if __name__ == '__main__':
                 # res = np.hstack((gray, equ))
 
                 # Obtain locations of the detected faces using haarcascade
+                # cv2.imshow('gray', gray)
                 faces = detector.detectMultiScale(gray, 1.3, 5)
                 print(len(faces))
                 # for (x, y, w, h) in faces:
@@ -62,15 +63,18 @@ if __name__ == '__main__':
                     for box in faces:
                         global bbox
                         bbox = tuple(box)
+                        print(box)
+                        # time.sleep(5)
                         tracker.init(frame, bbox)
                         tracking_face = True
-                else:
-                    tracking_face = False
             # Start timer
             timer = cv2.getTickCount()
 
             # Update tracker
             if tracking_face:
+                p1 = (int(bbox[0]), int(bbox[1]))
+                p2 = (int(bbox[0] + bbox[2]), int(bbox[1] + bbox[3]))
+                cv2.rectangle(frame, p1, p2, (255, 0, 0), 2, 1)
                 ok, bbox = tracker.update(frame)
                 print(ok)
             # Calculate Frames per second (FPS)
@@ -101,3 +105,7 @@ if __name__ == '__main__':
             k = cv2.waitKey(1) & 0xff
             if k == 27:
                 break
+        else:
+            break
+    video.release()
+    cv2.destroyAllWindows()

@@ -4,8 +4,8 @@ import os
 import dlib
 
 detector = dlib.get_frontal_face_detector()
-sp = dlib.shape_predictor(os.getcwd()+'shape_predictor_5_face_landmarks.dat')
-facerec = dlib.face_recognition_model_v1(os.getcwd()+'dlib_face_recognition_resnet_model_v1.dat')
+sp = dlib.shape_predictor('shape_predictor_5_face_landmarks.dat')
+facerec = dlib.face_recognition_model_v1('dlib_face_recognition_resnet_model_v1.dat')
 
 win = dlib.image_window()
 
@@ -36,6 +36,7 @@ def videos_to_encoding(videos_list):
                         win.add_overlay(shape)
                         face_descriptor = list(facerec.compute_face_descriptor(image, shape))
                         print(face_descriptor)
+                        print(len(face_descriptor))
                         # dlib.hit_enter_to_continue()
                 # cv2.imshow('image', image)
                 if cv2.waitKey(50) & 0xff == ord('q'):
@@ -43,7 +44,7 @@ def videos_to_encoding(videos_list):
             else:
                 break
         cap.release()
-        # cv2.destroyAllWindows()
+        cv2.destroyAllWindows()
 
 
 if __name__ == '__main__':

@@ -3,15 +3,16 @@ import cv2
 import dlib
 import pickle
 import numpy as np
+import os
 
 
 # Initialize a face cascade using the frontal face haar cascade provided with
 # the OpenCV library
 faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-
+detector = dlib.get_frontal_face_detector()
 
 # Loading the encodings calculated from dlib_encode.py file
-data = pickle.loads(open('encodings_dlib', 'rb').read())
+data = pickle.loads(open(os.getcwd()+'/Models/encodings_dlib', 'rb').read())
 train_image_encodings = data
 
 # Load all the models we need: a detector to find the faces, a shape predictor
@@ -68,7 +69,7 @@ def detect_and_track_largest_face():
     # currently using the dlib tracker
     tracking_face = 0
     frame_count = 0
-    frame_interval_to_detect = 1200
+    frame_interval_to_detect = 200
 
     # The color of the rectangle we draw around the face
     rectangle_color = (0, 255, 0)
@@ -79,8 +80,7 @@ def detect_and_track_largest_face():
             rc, full_size_base_image = capture.read()
 
             # Resize the image to 320x240
-            base_image = cv2.resize(full_size_base_image, ( 320, 240))
-
+            base_image = cv2.resize(full_size_base_image, (320, 240))
 
             # Check if a key was pressed and if it was Q, then destroy all
             # opencv windows and exit the application
@@ -90,25 +90,19 @@ def detect_and_track_largest_face():
                 exit(0)
 
             frame_count += 1
-            # Result image is the image we will show the user, which is a
-            # combination of the original image from the webcam and the
-            # overlayed rectangle for the largest face
+
             result_image = base_image.copy()
             print(frame_count)
             # If we are not tracking a face, then try to detect one
             if not tracking_face or frame_count % frame_interval_to_detect == 1:
 
-                # For the face detection, we need to make use of a gray
-                # colored image so we will convert the base_image to a
-                # gray-based image
                 gray = cv2.cvtColor(base_image, cv2.COLOR_BGR2GRAY)
-                # Now use the haar cascade detector to find all faces
-                # in the image
-                faces = faceCascade.detectMultiScale(gray, 1.3, 5)
+
+                # faces = faceCascade.detectMultiScale(gray, 1.3, 5)
+                faces = detector(gray, 1)
                 # In the console we can show that only now we are
                 # using the detector for a face
                 print("Using the cascade detector to detect face")
-
 
                 # For now, we are only interested in the 'largest'
                 # face, and we determine this based on the largest
@@ -120,28 +114,20 @@ def detect_and_track_largest_face():
                 w = 0
                 h = 0
 
-
                 # Loop over all faces and check if the area for this
                 # face is the largest so far
                 # We need to convert it to int here because of the
                 # requirement of the dlib tracker. If we omit the cast to
                 # int here, you will get cast errors since the detector
                 # returns numpy.int32 and the tracker requires an int
-                for (_x, _y, _w, _h) in faces:
-                    if _w*_h > max_area:
-                        x = int(_x)
-                        y = int(_y)
-                        w = int(_w)
-                        h = int(_h)
+
+                for d in faces:
+                    if d.right()*d.bottom() > max_area:
+                        x = int(d.left())
+                        y = int(d.top())
+                        w = int(d.right())
+                        h = int(d.bottom())
                         max_area = w*h
-                # faces = detector(base_image, 1)
-                # for d in faces:
-                    # shape = sp(base_image, d)
-                    # # Calculate encodings of the face detected
-                    # face_descriptor = list(facerec.compute_face_descriptor(base_image, shape))
-                    # face_encoding = [np.array(face_descriptor)]
-                    # name = L2_distance(face_encoding)
-                    d = dlib.rectangle(x, y, x+w, y+h)
                     shape = sp(base_image, d)
                     # Calculate encodings of the face detected
                     face_descriptor = list(facerec.compute_face_descriptor(base_image, shape))
@@ -153,7 +139,7 @@ def detect_and_track_largest_face():
                 if max_area > 0:
 
                     # Initialize the tracker
-                    tracker.start_track(base_image, dlib.rectangle(x, y, x+w, y+h))
+                    tracker.start_track(base_image, dlib.rectangle(x, y, w, h))
 
                     # Set the indicator variable such that we know the
                     # tracker is tracking a region in the image
@@ -165,8 +151,6 @@ def detect_and_track_largest_face():
                 # Update the tracker and request information about the
                 # quality of the tracking update
                 tracking_quality = tracker.update(base_image)
-
-
 
                 # If the tracking quality is good enough, determine the
                 # updated position of the tracked region and draw the

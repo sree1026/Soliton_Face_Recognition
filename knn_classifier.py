@@ -1,35 +1,34 @@
 import pandas as pd
-import knn_model
 from sklearn.externals import joblib
 import cv2
 import dlib
 import pickle
 import numpy as np
-import time
 
+# Load the Knn model
+knn = joblib.load('knn_classifier_model.sav')
 
-# start = time.time()
-# print(start)
-knn = joblib.load(knn_model.filename)
-# print("time taken: "+str(time.time()-start))
-# score = knn.score(knn_model.X_test, knn_model.y_test)
-# print("Accuracy of the mode: "+str(score*100))
-
+# load the encodings we have created
 data = pickle.loads(open('encodings_name_dlib', 'rb').read())
-train_image_encodings = data
+
+# Store face detector model, shape predictor model and face recognition model in individual variable.
 detector = dlib.get_frontal_face_detector()
 sp = dlib.shape_predictor('shape_predictor_5_face_landmarks.dat')
-facerec = dlib.face_recognition_model_v1('dlib_face_recognition_resnet_model_v1.dat')
+face_recognition_model = dlib.face_recognition_model_v1('dlib_face_recognition_resnet_model_v1.dat')
 
 
 def L2_distance(face_encoding, index_list):
     """
+    This function calculates the L2 distance between each of the encodings of N Neighbours with the encodings of the
+    face detected.
 
     :param face_encoding: It gets a 128-dimensional list of facial encoding of face detected in the webcam or video feed
     :param index_list: It contains the index values of n nearest neighbours returned by the knn classifier.
     :return: A string indicating the name of the person recognised based on the threshold(min_distance) we set.
     """
     min_distance = 0.46
+    print(index_list)
+    print(len(data))
     name = 'unknown'
     # print("Calculating Matches.........")
     for index in index_list:
@@ -37,50 +36,150 @@ def L2_distance(face_encoding, index_list):
         distance = np.linalg.norm(face_encoding - ref)
         if distance <= min_distance:
             min_distance = distance
-            name = ''.join(filter(lambda x: not x.isdigit(), data[index][0]))
-        # print(name+" ::: "+str(distance))
+            name = data[index][0]
     return name
+
+
+def debugging(display, display_width, big_database_list, faces):
+    """
+    This function is for debugging purpose i.e to display the name of recogninsed person and his L2 distance on the
+    screen alongside the camera feed
+    :param display: It is a blank image on which we are going to write some texts
+    :param display_width: it is the width of the blank image which can be modified based on our need.
+    :param big_database_list: It contains the list of names and corresponding L2 distance of all the faces detected
+    :param faces: It is total number of faces detected
+    :return: It returns a blank image on which details of no of faces detected, names and L2 distance for debugging
+    purpose.
+    """
+    detail = "Total face detected: "
+    x = 0
+    y = 0
+    width_box = 20
+    breadth = display_width
+    h = y + width_box
+    cv2.rectangle(display, (x, y), (breadth, h), (255, 0, 0), cv2.FILLED)
+    cv2.putText(display, detail, (x, y + 15), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
+    x = display_width
+    cv2.putText(display, str(len(faces)), (x - 30, y + 15), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
+
+    for index, database_list in enumerate(big_database_list):
+        detail = "Detected face no: "
+        x = 0
+        y = h
+        h = y + width_box
+        cv2.rectangle(display, (x, y), (breadth, h), (255, 0, 0), cv2.FILLED)
+        cv2.putText(display, detail, (x, y + 15), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
+        x = display_width
+        cv2.putText(display, str(index + 1), (x - 30, y + 15), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
+        for val, item in enumerate(database_list):
+            if val == 5:
+                break
+            else:
+                value = np.float(item[1])
+                value = str(value)
+                value = value[:6]
+                y = h
+                h = y + width_box
+                x = 0
+                cv2.rectangle(display, (x, y), (breadth, h), (255, 0, 0), cv2.FILLED)
+                cv2.putText(display, item[0], (x, y + 15), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
+                x = display_width
+                cv2.putText(display, value, (x - (10 * len(value)), y + 15), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
+    return display
+
+
+def L2_distance_debugging(face_encoding, index_list):
+    """
+    This function calculates the L2 distance between each of the encodings of N Neighbours with the encodings of the
+    face detected.
+
+    :param face_encoding: It gets a 128-dimensional list of facial encoding of face detected in the webcam or video feed
+    :param index_list: It contains the index values of n nearest neighbours returned by the knn classifier.
+    :return: A string indicating the name of the person recognised based on the threshold(min_distance) we set.
+    """
+    min_distance = 0.4301
+    print(index_list)
+    database_list = []
+    name = 'unknown'
+    # print("Calculating Matches.........")
+    for index in index_list:
+        ref = data[index][1]
+        distance = np.linalg.norm(face_encoding - ref)
+        if distance <= min_distance:
+            min_distance = distance
+            name = data[index][0]
+        database_tuple = tuple([name, distance])
+        database_list.append(database_tuple)
+    return database_list
 
 
 def face_recogniser():
     """
+    This function detects and recognises face fetched through web cam feed.
 
     :return: It doesn't return anything.
     """
+    # Initializes a variable for Video Capture
     cap = cv2.VideoCapture(0)
+    display_width = 250
     while True:
         ret, frame = cap.read()
+        big_database = []
+        # Get the frame dimensions for later computation
         (frame_height, frame_width, channels) = frame.shape
-
+        image = cv2.imread('blank.png', 1)
+        image = cv2.resize(image, (display_width, frame_height))
         if ret:
             img = cv2.resize(frame, (224, 224))
+
+            # Get the image dimensions
             (img_height, img_width, img_channels) = img.shape
             faces = detector(img, 1)
             if len(faces) != 0:
                 for face, d in enumerate(faces):
+
+                    # Get the locations of facial features like eyes, nose for using it to create encodings
                     shape = sp(img, d)
+
+                    # Get the coordinates of bounding box enclosing the face.
                     left = d.left()
                     top = d.top()
                     right = d.right()
                     bottom = d.bottom()
+
+                    # Converting the coordinates to match 480x640 resolution since we are resizing img to 224x224
                     cal_left = int(left * frame_width / img_width)
                     cal_top = int(top * frame_height / img_height)
                     cal_right = int(right * frame_width / img_width)
                     cal_bottom = int(bottom * frame_height / img_height)
                     cv2.rectangle(frame, (cal_left, cal_top), (cal_right, cal_bottom), (0, 255, 0), 2)
+
                     # Calculate encodings of the face detected
-                    face_descriptor = list(facerec.compute_face_descriptor(img, shape))
+                    face_descriptor = list(face_recognition_model.compute_face_descriptor(img, shape))
                     face_encoding = pd.DataFrame([face_descriptor])
                     face_encoding_list = [np.array(face_descriptor)]
-                    # duplicate_name = knn.predict(face_encoding)
-                    # print(duplicate_name)
+
+                    # Get indices the N Neighbours of the facial encoding
                     list_neighbors = knn.kneighbors(face_encoding, return_distance=False)
-                    list_matched_indices = [knn_model.y_train[index:index+1].index.values.astype(int)[0] for index in list_neighbors[0]]
-                    name = L2_distance(face_encoding_list, list_matched_indices)
+
+                    # Converting the indices we get in such a way that it matches with the indices of the stored encodings
+                    # list_matched_indices = [knn_model.names[index:index+1].index.values.astype(int)[0] for index in list_neighbors[0]]
+
+                    # Calculate the L2 distance between the encodings of N neighbours and the detected face.
+                    database_list = L2_distance_debugging(face_encoding_list, list_neighbors[0])
+                    database_list.sort(key=lambda x: x[1])
+                    big_database.append(database_list)
+
+                    # Draw the bounding box and write name on top of the face.
                     cv2.rectangle(frame, (cal_left, cal_top), (cal_right, cal_bottom), (0, 255, 0), 2)
                     cv2.rectangle(frame, (cal_left, cal_top - 30), (cal_right, cal_top), (0, 255, 0), cv2.FILLED)
-                    cv2.putText(frame, str(name), (cal_left + 6, cal_top - 6), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 0), 1)
-            cv2.imshow('frame', frame)
+                    cv2.putText(frame, database_list[0][0], (cal_left + 6, cal_top - 6), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 0), 1)
+            image = debugging(image, display_width, big_database, faces)
+            result = np.concatenate((frame, image), axis=1)
+            # Display the frame in a window.
+            cv2.imshow('frame', result)
+
+            # Break the loop when 'q' is pressed
             if cv2.waitKey(25) & 0xff == ord('q'):
                 break
         else:
@@ -88,33 +187,6 @@ def face_recogniser():
 
     cap.release()
     cv2.destroyAllWindows()
-
-
-# def recognise_face(frame, faces):
-#     img = cv2.resize(frame, (224, 224))
-#     name = ''
-#     for face, d in enumerate(faces):
-#         shape = sp(img, d)
-#         # Calculate encodings of the face detected
-#         face_descriptor = list(facerec.compute_face_descriptor(img, shape))
-#         face_encoding = pd.DataFrame([face_descriptor])
-#         face_encoding_list = [np.array(face_descriptor)]
-#         # duplicate_name = knn.predict(face_encoding)
-#         # print(duplicate_name)
-#         list_neighbors = knn.kneighbors(face_encoding, return_distance=False)
-#         # for index in list_neighbors[0]:
-#         #     number = knn_model.y_train[index:index+1].index.values.astype(int)[0]
-#         #     print(number)
-#         #     list_matched_indices.append(number)
-#         list_matched_indices = [knn_model.y_train[index:index + 1].index.values.astype(int)[0] for index in
-#                                 list_neighbors[0]]
-#         name_list = knn.predict(face_encoding)
-#         name = name_list[0]
-#         # name = L2_distance(face_encoding_list, list_matched_indices)
-#         # cv2.rectangle(frame, (cal_left, cal_top), (cal_right, cal_bottom), (0, 255, 0), 2)
-#         # cv2.rectangle(frame, (cal_left, cal_top - 30), (cal_right, cal_top), (0, 255, 0), cv2.FILLED)
-#         # cv2.putText(frame, str(name), (cal_left + 6, cal_top - 6), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 0), 1)
-#     return name
 
 
 if __name__ == '__main__':

@@ -1,26 +1,17 @@
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.externals import joblib
-import time
 
-start = time.time()
-df = pd.read_csv('output4.csv', header=None)
-print("Excel loading time::: "+str(time.time()-start))
-
-df.head()
-start = time.time()
-# print(start)
-X = df.drop(df.columns[0], axis=1)
-
-y = df[0]
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=1, shuffle=False)
-
-knn = KNeighborsClassifier(n_neighbors=7)
-
-knn.fit(X_train, y_train)
-print("Model training time :: "+str(time.time()-start))
+# read the csv file containing the encodings
+df = pd.read_csv('encodings_file_new.csv', header=None)
+# separate the encodings from the csv file
+encodings = df.drop(df.columns[0], axis=1)
+# separate the class name i.e name of person from the csv file
+names = df[0]
+# specify number of neighbours for tthe model
+knn = KNeighborsClassifier(n_neighbors=5)
+# Train the model
+knn.fit(encodings, names)
 filename = 'knn_classifier_model.sav'
-
+# Store the model for later use
 joblib.dump(knn, filename)

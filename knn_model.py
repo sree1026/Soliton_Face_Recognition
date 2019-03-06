@@ -3,11 +3,11 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.externals import joblib
 
 # read the csv file containing the encodings
-df = pd.read_csv('encodings_file_new.csv', header=None)
+df = pd.read_csv('water.csv', header=None)
 # separate the encodings from the csv file
-encodings = df.drop(df.columns[0], axis=1)
+encodings = df.drop(df.columns[2], axis=1)
 # separate the class name i.e name of person from the csv file
-names = df[0]
+names = df[2]
 # specify number of neighbours for tthe model
 knn = KNeighborsClassifier(n_neighbors=5)
 # Train the model

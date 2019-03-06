@@ -12,7 +12,7 @@ faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 detector = dlib.get_frontal_face_detector()
 
 # Loading the encodings calculated from dlib_encode.py file
-data = pickle.loads(open(os.getcwd()+'/Models/encodings_dlib', 'rb').read())
+data = pickle.loads(open('encodings_name_dlib', 'rb').read())
 train_image_encodings = data
 
 # Load all the models we need: a detector to find the faces, a shape predictor
@@ -25,6 +25,20 @@ facerec = dlib.face_recognition_model_v1('dlib_face_recognition_resnet_model_v1.
 # The deisred output width and height
 OUTPUT_SIZE_WIDTH = 775
 OUTPUT_SIZE_HEIGHT = 600
+
+
+def video_write(frame_array):
+    """
+
+    :param frame_array: It is a list containing frames from the camera feed
+    :return: It returns none
+    """
+    fourcc = cv2.VideoWriter_fourcc(*"DIVX")
+    writer = cv2.VideoWriter('Demo_video3.avi', fourcc, 25, (frame_array[0].shape[1], frame_array[0].shape[0]), True)
+    for frame in frame_array:
+        writer.write(frame)
+    print(len(frame_array))
+    writer.release()
 
 
 def L2_distance(face_encoding):
@@ -50,7 +64,6 @@ def detect_and_track_largest_face():
     # Open the first webcame device
     capture = cv2.VideoCapture(0)
     name = ''
-
     # Create two opencv named windows
     cv2.namedWindow("base-image", cv2.WINDOW_AUTOSIZE)
     cv2.namedWindow("result-image", cv2.WINDOW_AUTOSIZE)
@@ -73,12 +86,11 @@ def detect_and_track_largest_face():
 
     # The color of the rectangle we draw around the face
     rectangle_color = (0, 255, 0)
-
+    frame_array = []
     try:
         while True:
             # Retrieve the latest image from the webcam
             rc, full_size_base_image = capture.read()
-
             # Resize the image to 320x240
             base_image = cv2.resize(full_size_base_image, (320, 240))
 
@@ -133,7 +145,6 @@ def detect_and_track_largest_face():
                     face_descriptor = list(facerec.compute_face_descriptor(base_image, shape))
                     face_encoding = [np.array(face_descriptor)]
                     name = L2_distance(face_encoding)
-
                 # If one or more faces are found, initialize the tracker
                 # on the largest face in the picture
                 if max_area > 0:
@@ -184,7 +195,9 @@ def detect_and_track_largest_face():
             # Finally, we want to show the images on the screen
             cv2.imshow("base-image", base_image)
             cv2.imshow("result-image", large_result)
-            if cv2.waitKey(1) & 0xff == ord('q'):
+            frame_array.append(large_result)
+            if cv2.waitKey(25) & 0xff == ord('q'):
+                video_write(frame_array)
                 break
     except all:
         pass

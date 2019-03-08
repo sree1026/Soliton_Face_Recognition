@@ -4,6 +4,7 @@ import cv2
 import dlib
 import pickle
 import numpy as np
+import time
 
 # Load the Knn model
 knn = joblib.load('knn_classifier_model.sav')
@@ -182,6 +183,7 @@ def face_recogniser():
             img = resize_image(frame, (224, 224))
             # Get the image dimensions
             (img_height, img_width, img_channels) = img.shape
+            start = time.time()
             faces = detector(img, 1)
             if len(faces) != 0:
                 for face, d in enumerate(faces):
@@ -219,7 +221,7 @@ def face_recogniser():
                     database_list = L2_distance_debugging(face_encoding_list, list_neighbors[0])
                     # database_list.sort(key=lambda x: x[1])
                     big_database.append(database_list)
-
+                    print("Time taken for detection and recognition :::  "+str(time.time()-start))
                     # Draw the bounding box and write name on top of the face.
                     frame = draw_rectangle(frame, (cal_left, cal_top), (cal_right, cal_bottom), frame_rect_color, False)
                     frame = draw_rectangle(frame, (cal_left, cal_top - 30), (cal_right, cal_top), frame_rect_color, True)
@@ -241,4 +243,3 @@ def face_recogniser():
 
 if __name__ == '__main__':
     face_recogniser()
-git
